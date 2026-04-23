@@ -1,4 +1,4 @@
-package com.pisc.project
+package com.pisc.project // Ajuste o pacote se o seu for apenas com.pisc.project
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -7,15 +7,17 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.pisc.project.ui.SweatRateViewModel
-import androidx.compose.ui.tooling.preview.Preview
+import com.pisc.project.data.local.SweatRateDao // IMPORTANTE: Adicionado o import do DAO
+
 @Composable
-@Preview
-fun App(viewModel: SweatRateViewModel = viewModel { SweatRateViewModel() }) {
+fun App(dao: SweatRateDao) { // IMPORTANTE: O App agora exige o DAO como parâmetro
     MaterialTheme {
+        // IMPORTANTE: Passamos o DAO para a fábrica da ViewModel
+        val viewModel: SweatRateViewModel = viewModel { SweatRateViewModel(dao) }
+
         val uiState by viewModel.uiState.collectAsState()
 
         // Estados para os campos de texto
@@ -73,7 +75,7 @@ fun App(viewModel: SweatRateViewModel = viewModel { SweatRateViewModel() }) {
                 Text("Calcular Taxa")
             }
 
-            // Exibição dos Resultados (Motor de Cálculo) [cite: 42-60]
+            // Exibição dos Resultados (Motor de Cálculo)
             uiState?.let { result ->
                 Card(
                     modifier = Modifier.fillMaxWidth(),
@@ -91,6 +93,39 @@ fun App(viewModel: SweatRateViewModel = viewModel { SweatRateViewModel() }) {
                                 color = MaterialTheme.colorScheme.error,
                                 style = MaterialTheme.typography.bodyMedium
                             )
+                        }
+                    }
+                }
+            }
+            // No App.kt, dentro da Column, após o uiState?.let { ... }
+
+            val history by viewModel.history.collectAsState()
+
+            if (history.isNotEmpty()) {
+                Text(
+                    "Histórico de Treinos",
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.padding(top = 16.dp)
+                )
+
+                history.forEach { session ->
+                    Card(
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant
+                        )
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(12.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column {
+                                Text("Taxa: ${session.hourlyRateL.toString().take(4)} L/h")
+                                Text("Duração: ${session.durationMin} min", style = MaterialTheme.typography.bodySmall)
+                            }
+                            // Podes formatar o timestamp aqui depois
+                            Text("ID: ${session.id}", style = MaterialTheme.typography.labelSmall)
                         }
                     }
                 }
