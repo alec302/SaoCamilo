@@ -1,47 +1,98 @@
 package com.pisc.project
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.safeContentPadding
-import androidx.compose.material3.Button
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.pisc.project.ui.SweatRateViewModel
 import androidx.compose.ui.tooling.preview.Preview
-import org.jetbrains.compose.resources.painterResource
-
-import saocamilo.composeapp.generated.resources.Res
-import saocamilo.composeapp.generated.resources.compose_multiplatform
-
 @Composable
 @Preview
-fun App() {
+fun App(viewModel: SweatRateViewModel = viewModel { SweatRateViewModel() }) {
     MaterialTheme {
-        var showContent by remember { mutableStateOf(false) }
+        val uiState by viewModel.uiState.collectAsState()
+
+        // Estados para os campos de texto
+        var preWeight by remember { mutableStateOf("") }
+        var postWeight by remember { mutableStateOf("") }
+        var intake by remember { mutableStateOf("") }
+        var urine by remember { mutableStateOf("") }
+        var duration by remember { mutableStateOf("") }
+
         Column(
             modifier = Modifier
-                .background(MaterialTheme.colorScheme.primaryContainer)
-                .safeContentPadding()
-                .fillMaxSize(),
+                .fillMaxSize()
+                .padding(16.dp)
+                .verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Button(onClick = { showContent = !showContent }) {
-                Text("Click me!")
+            Text("Cálculo de Taxa de Sudorese", style = MaterialTheme.typography.headlineMedium)
+
+            // Campos de Entrada Baseados no Escopo
+            OutlinedTextField(
+                value = preWeight,
+                onValueChange = { preWeight = it },
+                label = { Text("Massa Corporal Pré-Exercício (kg)") },
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            OutlinedTextField(
+                value = postWeight,
+                onValueChange = { postWeight = it },
+                label = { Text("Massa Corporal Pós-Exercício (kg)") },
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            OutlinedTextField(
+                value = intake,
+                onValueChange = { intake = it },
+                label = { Text("Ingestão de Fluidos (mL)") },
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            OutlinedTextField(
+                value = duration,
+                onValueChange = { duration = it },
+                label = { Text("Duração do Treino (minutos)") },
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Button(
+                onClick = {
+                    viewModel.onCalculateClicked(preWeight, postWeight, intake, urine, duration)
+                },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("Calcular Taxa")
             }
-            AnimatedVisibility(showContent) {
-                val greeting = remember { Greeting().greet() }
-                Column(
+
+            // Exibição dos Resultados (Motor de Cálculo) [cite: 42-60]
+            uiState?.let { result ->
+                Card(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalAlignment = Alignment.CenterHorizontally,
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
                 ) {
-                    Image(painterResource(Res.drawable.compose_multiplatform), null)
-                    Text("Compose: $greeting")
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text("Resultados:", style = MaterialTheme.typography.titleLarge)
+                        Text("Taxa de Sudorese: ${((result.hourlySweatRateL * 100).toInt() / 100.0)} L/h")
+                        Text("Perda Total: ${((result.totalFluidLossL * 100).toInt() / 100.0)} L")
+                        Text("Variação de Massa: ${((result.weightChangePercentage * 100).toInt() / 100.0)} %")
+
+                        if (result.weightChangePercentage > 2.0) {
+                            Text(
+                                "Alerta: Risco de desidratação excessiva!",
+                                color = MaterialTheme.colorScheme.error,
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                        }
+                    }
                 }
             }
         }
