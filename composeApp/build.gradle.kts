@@ -60,6 +60,12 @@ kotlin {
             implementation(libs.compose.uiToolingPreview)
             implementation(libs.androidx.lifecycle.viewmodelCompose)
             implementation(libs.androidx.lifecycle.runtimeCompose)
+            // Adicione as bibliotecas de tempo de execução do Room e SQLite:
+            implementation(libs.androidx.room.runtime)
+            implementation(libs.sqlite.bundled)
+
+            // Certifique-se de que a biblioteca de Coroutines está aqui para o Dispatchers.IO funcionar:
+            implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.1")
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
