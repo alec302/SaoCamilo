@@ -35,21 +35,22 @@ kotlin {
     
     jvm()
     
-    js {
+/*    js {
         browser()
         binaries.executable()
-    }
+    }*/
     
-    @OptIn(ExperimentalWasmDsl::class)
+/*    @OptIn(ExperimentalWasmDsl::class)
     wasmJs {
         browser()
         binaries.executable()
-    }
+    }*/
     
     sourceSets {
         androidMain.dependencies {
             implementation(libs.compose.uiToolingPreview)
             implementation(libs.androidx.activity.compose)
+            implementation(libs.ktor.client.okhttp)
         }
         commonMain.dependencies {
             implementation(libs.compose.runtime)
@@ -66,6 +67,10 @@ kotlin {
 
             // Certifique-se de que a biblioteca de Coroutines está aqui para o Dispatchers.IO funcionar:
             implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.1")
+            implementation(libs.ktor.client.core)
+            implementation(libs.ktor.client.content.negotiation)
+            implementation(libs.ktor.serialization.kotlinx.json)
+            implementation(libs.ktor.client.logging)
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
@@ -73,6 +78,11 @@ kotlin {
         jvmMain.dependencies {
             implementation(compose.desktop.currentOs)
             implementation(libs.kotlinx.coroutinesSwing)
+            implementation(libs.ktor.client.okhttp)
+        }
+        iosMain.dependencies {
+            // Este é o motor nativo da Apple para o Ktor
+            implementation(libs.ktor.client.darwin)
         }
     }
 }

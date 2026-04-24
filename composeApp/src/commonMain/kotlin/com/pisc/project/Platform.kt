@@ -5,3 +5,5 @@ interface Platform {
 }
 
 expect fun getPlatform(): Platform
+// No commonMain/.../Platform.kt
+expect fun getEpochTime(): Long

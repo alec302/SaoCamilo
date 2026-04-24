@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.pisc.project.data.local.SweatRateDao
 import com.pisc.project.data.local.SweatRateEntity
+import com.pisc.project.getEpochTime
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -74,7 +75,7 @@ class SweatRateViewModel(private val dao: SweatRateDao) : ViewModel() {
         viewModelScope.launch {
             try {
                 val entity = SweatRateEntity(
-                    dateTimestamp = System.currentTimeMillis(),
+                    dateTimestamp = getEpochTime(),
                     initialWeight = preWeight,
                     finalWeight = postWeight,
                     intakeMl = intakeMl,
