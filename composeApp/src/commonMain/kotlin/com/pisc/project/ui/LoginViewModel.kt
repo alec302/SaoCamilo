@@ -18,9 +18,26 @@ class LoginViewModel : ViewModel() {
     private val _error = MutableStateFlow<String?>(null)
     val error = _error.asStateFlow()
 
+    private val _isLoading = MutableStateFlow(false)
+    val isLoading = _isLoading.asStateFlow()
+
     fun onLoginClicked(email: String, pass: String) {
+        if (email.isBlank() || pass.isBlank()) {
+            _error.value = "Por favor, preencha todos os campos."
+            return
+        }
+
+        if (!email.contains("@")) {
+            _error.value = "Formato de email inválido."
+            return
+        }
+
+        _error.value = null
+        _isLoading.value = true
+
         viewModelScope.launch {
-            val response = apiService.login(email, pass)
+            val response = apiService.login(email.trim(), pass)
+            _isLoading.value = false
             if (response.token != null) {
                 _isLoggedIn.value = true
                 _error.value = null

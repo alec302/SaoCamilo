@@ -11,13 +11,15 @@ fun main() = application {
     val builder = getDatabaseBuilder()
     val db = getRoomDatabase(builder)
     val dao = db.sweatRateDao()
+    val cloudDataSource = com.pisc.project.data.remote.CloudSweatRateDataSource()
+    val repository = com.pisc.project.data.repository.SweatRateRepository(dao, cloudDataSource)
 
     // 2. Inicia a Janela do Desktop
     Window(
         onCloseRequest = ::exitApplication,
         title = "São Camilo - Taxa de Sudorese",
     ) {
-        // 3. Passa o DAO para a UI!
-        App(dao = dao)
+        // 3. Passa o repositório para a UI!
+        App(repository = repository)
     }
 }

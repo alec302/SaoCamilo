@@ -2,8 +2,8 @@ package com.pisc.project.ui
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.pisc.project.data.local.SweatRateDao
 import com.pisc.project.data.local.SweatRateEntity
+import com.pisc.project.data.repository.SweatRateRepository
 import com.pisc.project.getEpochTime
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -16,31 +16,41 @@ import kotlinx.coroutines.flow.stateIn
 data class SweatRateResult(
     val hourlySweatRateL: Double,
     val totalFluidLossL: Double,
-    val weightChangePercentage: Double
+    val weightChangePercentage: Double,
+    val targetIntakeMlPerHour: Int,
+    val fractionationSuggestion: String,
+    val overIntakeRisk: Boolean
 )
 
-class SweatRateViewModel(private val dao: SweatRateDao) : ViewModel() {
+class SweatRateViewModel(private val repository: SweatRateRepository) : ViewModel() {
+
+    init {
+        // Tenta sincronizar registros pendentes na nuvem quando a ViewModel é iniciada
+        viewModelScope.launch {
+            repository.syncPendingSessions()
+        }
+    }
 
     // 1. Estado para o cálculo atual
     private val _uiState = MutableStateFlow<SweatRateResult?>(null)
     val uiState: StateFlow<SweatRateResult?> = _uiState.asStateFlow()
 
-    // 👇 AQUI ESTÁ A NOVIDADE 👇
-    // 2. Estado para o Histórico (Lê direto do banco de dados automaticamente)
-    val history = dao.getAllSessions()
+    // 2. Estado para o Histórico (Lê direto do repositório, offline-first)
+    val history = repository.getAllSessions()
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
             initialValue = emptyList()
         )
-    // 👆 AQUI ESTÁ A NOVIDADE 👆
 
     fun onCalculateClicked(
         preWeightStr: String,
         postWeightStr: String,
         intakeStr: String,
         urineStr: String,
-        durationStr: String
+        durationStr: String,
+        trainingType: String,
+        climate: String
     ) {
         println("--- BOTÃO CLICADO ---")
 
@@ -49,8 +59,6 @@ class SweatRateViewModel(private val dao: SweatRateDao) : ViewModel() {
         val intakeMl = intakeStr.replace(",", ".").toDoubleOrNull() ?: 0.0
         val urineMl = urineStr.replace(",", ".").toDoubleOrNull() ?: 0.0
         val durationMin = durationStr.replace(",", ".").toDoubleOrNull() ?: 60.0
-
-        println("Dados lidos: $preWeight kg, $durationMin min")
 
         if (preWeight <= 0.0 || durationMin <= 0.0) {
             println("ERRO: Peso ou Tempo estão zerados. Abortando cálculo.")
@@ -62,15 +70,21 @@ class SweatRateViewModel(private val dao: SweatRateDao) : ViewModel() {
         val hourlyRate = totalLossL / (durationMin / 60.0)
         val weightChangePct = (weightLostKg / preWeight) * 100.0
 
+        val targetIntake = (hourlyRate * 1000).coerceAtLeast(0.0).toInt()
+        val frac = targetIntake / 4 // a cada 15 min
+
         val result = SweatRateResult(
             hourlySweatRateL = hourlyRate,
             totalFluidLossL = totalLossL,
-            weightChangePercentage = weightChangePct
+            weightChangePercentage = weightChangePct,
+            targetIntakeMlPerHour = targetIntake,
+            fractionationSuggestion = "Beba ~${frac}mL a cada 15 minutos",
+            overIntakeRisk = weightLostKg < 0
         )
 
         _uiState.update { result }
 
-        println("Calculou com sucesso! Tentando salvar no banco...")
+        println("Calculou com sucesso! Tentando salvar no repositório (Local + Cloud)...")
 
         viewModelScope.launch {
             try {
@@ -81,12 +95,14 @@ class SweatRateViewModel(private val dao: SweatRateDao) : ViewModel() {
                     intakeMl = intakeMl,
                     urineMl = urineMl,
                     durationMin = durationMin,
-                    hourlyRateL = hourlyRate
+                    hourlyRateL = hourlyRate,
+                    trainingType = trainingType,
+                    climate = climate
                 )
-                dao.insertSession(entity)
-                println("--- SALVO NO SQLITE COM SUCESSO! ---")
+                repository.insertSession(entity)
+                println("--- ENVIADO PARA O REPOSITÓRIO! ---")
             } catch (e: Exception) {
-                println("ERRO NO BANCO: ${e.message}")
+                println("ERRO NO REPOSITÓRIO: ${e.message}")
             }
         }
     }

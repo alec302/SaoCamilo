@@ -1,12 +1,12 @@
 {
   "formatVersion": 1,
   "database": {
-    "version": 1,
-    "identityHash": "9692471500bb4204a51f5bc977b8f38d",
+    "version": 3,
+    "identityHash": "332b59acc3441ddf5da8376b1dbd2580",
     "entities": [
       {
         "tableName": "sweat_sessions",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `dateTimestamp` INTEGER NOT NULL, `initialWeight` REAL NOT NULL, `finalWeight` REAL NOT NULL, `intakeMl` REAL NOT NULL, `urineMl` REAL NOT NULL, `durationMin` REAL NOT NULL, `hourlyRateL` REAL NOT NULL, `isSynced` INTEGER NOT NULL)",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `dateTimestamp` INTEGER NOT NULL, `initialWeight` REAL NOT NULL, `finalWeight` REAL NOT NULL, `intakeMl` REAL NOT NULL, `urineMl` REAL NOT NULL, `durationMin` REAL NOT NULL, `hourlyRateL` REAL NOT NULL, `isSynced` INTEGER NOT NULL, `trainingType` TEXT NOT NULL, `climate` TEXT NOT NULL)",
         "fields": [
           {
             "fieldPath": "id",
@@ -61,6 +61,18 @@
             "columnName": "isSynced",
             "affinity": "INTEGER",
             "notNull": true
+          },
+          {
+            "fieldPath": "trainingType",
+            "columnName": "trainingType",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "climate",
+            "columnName": "climate",
+            "affinity": "TEXT",
+            "notNull": true
           }
         ],
         "primaryKey": {
@@ -73,7 +85,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '9692471500bb4204a51f5bc977b8f38d')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '332b59acc3441ddf5da8376b1dbd2580')"
     ]
   }
 }

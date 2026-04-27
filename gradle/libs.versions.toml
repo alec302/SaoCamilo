@@ -19,8 +19,10 @@ androidx-room = "2.8.4"
 sqlite = "2.5.0-alpha11"
 ksp = "2.3.6"
 ktor = "3.1.0" # Versão estável para 2026
+supabase = "3.0.2"
 
 [libraries]
+supabase-postgrest = { module = "io.github.jan-tennert.supabase:postgrest-kt", version.ref = "supabase" }
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
 kotlin-testJunit = { module = "org.jetbrains.kotlin:kotlin-test-junit", version.ref = "kotlin" }
 junit = { module = "junit:junit", version.ref = "junit" }

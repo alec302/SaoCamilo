@@ -15,9 +15,11 @@ class MainActivity : ComponentActivity() {
         val builder = getDatabaseBuilder(applicationContext)
         val db = getRoomDatabase(builder)
         val dao = db.sweatRateDao()
+        val cloudDataSource = com.pisc.project.data.remote.CloudSweatRateDataSource()
+        val repository = com.pisc.project.data.repository.SweatRateRepository(dao, cloudDataSource)
 
         setContent {
-            App(dao = dao)
+            App(repository = repository)
         }
     }
 }

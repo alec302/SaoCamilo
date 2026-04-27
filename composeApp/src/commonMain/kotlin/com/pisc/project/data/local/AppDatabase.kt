@@ -5,7 +5,7 @@ import androidx.room.Database
 import androidx.room.RoomDatabase
 import androidx.room.RoomDatabaseConstructor
 
-@Database(entities = [SweatRateEntity::class], version = 1)
+@Database(entities = [SweatRateEntity::class], version = 3)
 @ConstructedBy(AppDatabaseConstructor::class) // <- 1. Avisa o Room para criar o construtor
 abstract class AppDatabase : RoomDatabase() {
     abstract fun sweatRateDao(): SweatRateDao
