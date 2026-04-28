@@ -22,12 +22,15 @@ data class SweatRateResult(
     val overIntakeRisk: Boolean
 )
 
-class SweatRateViewModel(private val repository: SweatRateRepository) : ViewModel() {
+class SweatRateViewModel(
+    private val repository: SweatRateRepository,
+    private val userEmail: String
+) : ViewModel() {
 
     init {
-        // Tenta sincronizar registros pendentes na nuvem quando a ViewModel é iniciada
+        // Tenta sincronizar registros da nuvem pro local ao iniciar
         viewModelScope.launch {
-            repository.syncPendingSessions()
+            repository.syncCloudToLocal(userEmail)
         }
     }
 
@@ -35,8 +38,8 @@ class SweatRateViewModel(private val repository: SweatRateRepository) : ViewMode
     private val _uiState = MutableStateFlow<SweatRateResult?>(null)
     val uiState: StateFlow<SweatRateResult?> = _uiState.asStateFlow()
 
-    // 2. Estado para o Histórico (Lê direto do repositório, offline-first)
-    val history = repository.getAllSessions()
+    // 2. Estado para o Histórico (Lê direto do repositório escopado ao usuário)
+    val history = repository.getAllSessions(userEmail)
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
@@ -89,6 +92,7 @@ class SweatRateViewModel(private val repository: SweatRateRepository) : ViewMode
         viewModelScope.launch {
             try {
                 val entity = SweatRateEntity(
+                    userEmail = userEmail,
                     dateTimestamp = getEpochTime(),
                     initialWeight = preWeight,
                     finalWeight = postWeight,

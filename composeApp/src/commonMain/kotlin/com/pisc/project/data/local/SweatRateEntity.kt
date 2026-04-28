@@ -7,7 +7,8 @@ import kotlinx.serialization.Serializable
 @Entity(tableName = "sweat_sessions")
 @Serializable
 data class SweatRateEntity(
-    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    @PrimaryKey val id: String = generateUUID(),
+    val userEmail: String, // Identidade do usuário
     val dateTimestamp: Long, // Para sabermos QUANDO o treino aconteceu
     val initialWeight: Double,
     val finalWeight: Double,
@@ -19,3 +20,8 @@ data class SweatRateEntity(
     val trainingType: String = "",
     val climate: String = ""
 )
+
+fun generateUUID(): String {
+    val chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
+    return (1..16).map { chars.random() }.joinToString("")
+}

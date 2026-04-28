@@ -12,5 +12,6 @@ data class LoginRequest(
 data class AuthResponse(
     val token: String?,
     val userId: String?,
+    val isDarkTheme: Boolean = false,
     val error: String? = null
 )

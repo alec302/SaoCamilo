@@ -9,6 +9,11 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -23,23 +28,36 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.pisc.project.data.local.SweatRateEntity
 import com.pisc.project.data.repository.SweatRateRepository
 import com.pisc.project.ui.*
+import kotlinx.coroutines.launch
 
 @Composable
 fun App(repository: SweatRateRepository) {
-    var isLoggedIn by remember { mutableStateOf(false) }
+    var loggedInUserEmail by remember { mutableStateOf<String?>(null) }
     var isDarkTheme by remember { mutableStateOf(false) }
 
     val colors = if (isDarkTheme) DarkColors else LightColors
 
     CompositionLocalProvider(LocalAppColors provides colors) {
         MaterialTheme {
-            if (!isLoggedIn) {
-                LoginScreen(onLoginSuccess = { isLoggedIn = true })
+            if (loggedInUserEmail == null) {
+                LoginScreen(onLoginSuccess = { email, darkTheme -> 
+                    loggedInUserEmail = email
+                    isDarkTheme = darkTheme 
+                })
             } else {
+                val coroutineScope = rememberCoroutineScope()
+
                 MainScaffoldContent(
                     repository = repository,
+                    userEmail = loggedInUserEmail!!,
                     isDarkTheme = isDarkTheme,
-                    onThemeToggle = { isDarkTheme = it }
+                    onThemeToggle = { newTheme -> 
+                        isDarkTheme = newTheme 
+                        coroutineScope.launch {
+                            com.pisc.project.data.remote.AuthApiService().updateTheme(loggedInUserEmail!!, newTheme)
+                        }
+                    },
+                    onLogout = { loggedInUserEmail = null }
                 )
             }
         }
@@ -49,10 +67,12 @@ fun App(repository: SweatRateRepository) {
 @Composable
 fun MainScaffoldContent(
     repository: SweatRateRepository,
+    userEmail: String,
     isDarkTheme: Boolean,
-    onThemeToggle: (Boolean) -> Unit
+    onThemeToggle: (Boolean) -> Unit,
+    onLogout: () -> Unit
 ) {
-    val viewModel: SweatRateViewModel = viewModel { SweatRateViewModel(repository) }
+    val viewModel: SweatRateViewModel = viewModel { SweatRateViewModel(repository, userEmail) }
     val uiState by viewModel.uiState.collectAsState()
     val history by viewModel.history.collectAsState()
     val colors = LocalAppColors.current
@@ -68,28 +88,28 @@ fun MainScaffoldContent(
                 NavigationBarItem(
                     selected = currentTab == 0,
                     onClick = { currentTab = 0 },
-                    icon = { Text("➕", fontSize = 20.sp) },
+                    icon = { Icon(Icons.Default.Add, contentDescription = "Calculadora") },
                     label = { Text("Calculadora") },
                     colors = NavigationBarItemDefaults.colors(selectedIconColor = colors.accentStart, selectedTextColor = colors.accentStart, indicatorColor = colors.surface, unselectedIconColor = colors.textSecondary, unselectedTextColor = colors.textSecondary)
                 )
                 NavigationBarItem(
                     selected = currentTab == 1,
                     onClick = { currentTab = 1 },
-                    icon = { Text("📜", fontSize = 20.sp) },
+                    icon = { Icon(Icons.Default.DateRange, contentDescription = "Histórico") },
                     label = { Text("Histórico") },
                     colors = NavigationBarItemDefaults.colors(selectedIconColor = colors.accentStart, selectedTextColor = colors.accentStart, indicatorColor = colors.surface, unselectedIconColor = colors.textSecondary, unselectedTextColor = colors.textSecondary)
                 )
                 NavigationBarItem(
                     selected = currentTab == 2,
                     onClick = { currentTab = 2 },
-                    icon = { Text("📊", fontSize = 20.sp) },
+                    icon = { Icon(Icons.Default.Menu, contentDescription = "Painel") },
                     label = { Text("Painel") },
                     colors = NavigationBarItemDefaults.colors(selectedIconColor = colors.accentStart, selectedTextColor = colors.accentStart, indicatorColor = colors.surface, unselectedIconColor = colors.textSecondary, unselectedTextColor = colors.textSecondary)
                 )
                 NavigationBarItem(
                     selected = currentTab == 3,
                     onClick = { currentTab = 3 },
-                    icon = { Text("⚙️", fontSize = 20.sp) },
+                    icon = { Icon(Icons.Default.Settings, contentDescription = "Ajustes") },
                     label = { Text("Ajustes") },
                     colors = NavigationBarItemDefaults.colors(selectedIconColor = colors.accentStart, selectedTextColor = colors.accentStart, indicatorColor = colors.surface, unselectedIconColor = colors.textSecondary, unselectedTextColor = colors.textSecondary)
                 )
@@ -100,15 +120,17 @@ fun MainScaffoldContent(
             when (currentTab) {
                 0 -> CalculatorScreen(viewModel, uiState)
                 1 -> HistoryScreen(history)
-                2 -> DashboardScreen(history)
-                3 -> SettingsScreen(isDarkTheme, onThemeToggle)
+                2 -> DashboardScreen(history, userEmail)
+                3 -> SettingsScreen(isDarkTheme, { newTheme -> 
+                    onThemeToggle(newTheme)
+                }, onLogout, userEmail)
             }
         }
     }
 }
 
 @Composable
-fun SettingsScreen(isDarkTheme: Boolean, onThemeToggle: (Boolean) -> Unit) {
+fun SettingsScreen(isDarkTheme: Boolean, onThemeToggle: (Boolean) -> Unit, onLogout: () -> Unit, userEmail: String) {
     val colors = LocalAppColors.current
 
     Column(
@@ -118,6 +140,21 @@ fun SettingsScreen(isDarkTheme: Boolean, onThemeToggle: (Boolean) -> Unit) {
     ) {
         Text("CONFIGURAÇÕES", style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Black, letterSpacing = 2.sp, color = colors.textPrimary), modifier = Modifier.padding(top = 16.dp, bottom = 4.dp))
         Box(modifier = Modifier.padding(bottom = 16.dp).height(4.dp).width(40.dp).background(colors.accentBrush, CircleShape))
+
+        Card(modifier = Modifier.fillMaxWidth().widthIn(max = 600.dp), shape = RoundedCornerShape(24.dp), colors = CardDefaults.cardColors(containerColor = colors.surface)) {
+            Row(modifier = Modifier.padding(24.dp).fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                Column {
+                    Text("Usuário Ativo", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold, color = colors.textPrimary))
+                    Text(userEmail, style = MaterialTheme.typography.bodyMedium.copy(color = colors.textSecondary))
+                }
+                Button(
+                    onClick = onLogout,
+                    colors = ButtonDefaults.buttonColors(containerColor = colors.dangerBg, contentColor = colors.danger)
+                ) {
+                    Text("Sair da Conta", fontWeight = FontWeight.Bold)
+                }
+            }
+        }
 
         Card(modifier = Modifier.fillMaxWidth().widthIn(max = 600.dp), shape = RoundedCornerShape(24.dp), colors = CardDefaults.cardColors(containerColor = colors.surface)) {
             Row(modifier = Modifier.padding(24.dp).fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
@@ -230,7 +267,7 @@ fun CalculatorScreen(viewModel: SweatRateViewModel, uiState: SweatRateResult?) {
 }
 
 @Composable
-fun DashboardScreen(history: List<SweatRateEntity>) {
+fun DashboardScreen(history: List<SweatRateEntity>, userEmail: String) {
     val clipboardManager = LocalClipboardManager.current
     var copiedMessage by remember { mutableStateOf("") }
     val colors = LocalAppColors.current
@@ -311,6 +348,19 @@ fun DashboardScreen(history: List<SweatRateEntity>) {
                 modifier = Modifier.weight(1f).height(50.dp), colors = ButtonDefaults.buttonColors(containerColor = colors.surface)
             ) { Text("Copiar Resumo", color = colors.accentStart) }
         }
+
+        Button(
+            onClick = {
+                com.pisc.project.util.exportHistoryToPdf(
+                    history = validHistory,
+                    userEmail = userEmail,
+                    onSuccess = { path -> copiedMessage = "PDF salvo com sucesso!" },
+                    onError = { err -> copiedMessage = "Erro: $err" }
+                )
+            },
+            modifier = Modifier.fillMaxWidth().widthIn(max = 600.dp).height(50.dp), 
+            colors = ButtonDefaults.buttonColors(containerColor = colors.dangerBg, contentColor = colors.danger)
+        ) { Text("Exportar para PDF", fontWeight = FontWeight.Bold) }
         
         if (copiedMessage.isNotEmpty()) { Text(copiedMessage, color = colors.success, style = MaterialTheme.typography.labelMedium) }
         Spacer(modifier = Modifier.height(32.dp))

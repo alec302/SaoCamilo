@@ -12,31 +12,51 @@ class SweatRateRepository(
     private val localDao: SweatRateDao,
     private val cloudDataSource: CloudSweatRateDataSource
 ) {
-    // Retorna direto do banco local para ser offline-first e super rápido
-    fun getAllSessions(): Flow<List<SweatRateEntity>> {
-        return localDao.getAllSessions()
+    fun getAllSessions(userEmail: String): Flow<List<SweatRateEntity>> {
+        return localDao.getAllSessions(userEmail)
     }
 
     suspend fun insertSession(session: SweatRateEntity) {
-        // 1. Salva localmente primeiro com isSynced = false
-        val insertedId = localDao.insertSession(session.copy(isSynced = false))
+        localDao.insertSession(session.copy(isSynced = false))
         
-        // 2. Tenta sincronizar com a nuvem em background
         CoroutineScope(Dispatchers.Default).launch {
-            val sessionToSync = session.copy(id = insertedId, isSynced = false)
+            val sessionToSync = session.copy(isSynced = false)
             val success = cloudDataSource.insertSession(sessionToSync)
             
             if (success) {
-                // 3. Se deu certo, atualiza o status local para verdadeiro
                 localDao.updateSession(sessionToSync.copy(isSynced = true))
             }
         }
     }
 
-    suspend fun syncPendingSessions() {
-        // Busca todos que falharam em subir antes (quando estava offline)
-        val pendingSessions = localDao.getUnsyncedSessions()
+    suspend fun syncCloudToLocal(userEmail: String) {
+        // 1. Tenta baixar todos os dados do usuário da nuvem
+        val cloudSessions = cloudDataSource.fetchSessions(userEmail)
         
+        if (cloudSessions != null) {
+            // Converte os DTOs em Entidades marcadas como sincronizadas
+            val entities = cloudSessions.map { dto ->
+                SweatRateEntity(
+                    id = dto.id,
+                    userEmail = dto.userEmail,
+                    dateTimestamp = dto.dateTimestamp,
+                    initialWeight = dto.initialWeight,
+                    finalWeight = dto.finalWeight,
+                    intakeMl = dto.intakeMl,
+                    urineMl = dto.urineMl,
+                    durationMin = dto.durationMin,
+                    hourlyRateL = dto.hourlyRateL,
+                    trainingType = dto.trainingType,
+                    climate = dto.climate,
+                    isSynced = true
+                )
+            }
+            // Injeta no Room. Como os IDs são UUIDs, ele fará merge (REPLACE) sem duplicar.
+            localDao.insertSessions(entities)
+        }
+
+        // 2. Agora pega os dados locais pendentes deste usuário e manda para a nuvem
+        val pendingSessions = localDao.getUnsyncedSessions(userEmail)
         for (session in pendingSessions) {
             val success = cloudDataSource.insertSession(session)
             if (success) {

@@ -1,0 +1,97 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 4,
+    "identityHash": "670b13efe30099d1f674b6102504d417",
+    "entities": [
+      {
+        "tableName": "sweat_sessions",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `userEmail` TEXT NOT NULL, `dateTimestamp` INTEGER NOT NULL, `initialWeight` REAL NOT NULL, `finalWeight` REAL NOT NULL, `intakeMl` REAL NOT NULL, `urineMl` REAL NOT NULL, `durationMin` REAL NOT NULL, `hourlyRateL` REAL NOT NULL, `isSynced` INTEGER NOT NULL, `trainingType` TEXT NOT NULL, `climate` TEXT NOT NULL, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "userEmail",
+            "columnName": "userEmail",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "dateTimestamp",
+            "columnName": "dateTimestamp",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "initialWeight",
+            "columnName": "initialWeight",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "finalWeight",
+            "columnName": "finalWeight",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "intakeMl",
+            "columnName": "intakeMl",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "urineMl",
+            "columnName": "urineMl",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "durationMin",
+            "columnName": "durationMin",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "hourlyRateL",
+            "columnName": "hourlyRateL",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isSynced",
+            "columnName": "isSynced",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "trainingType",
+            "columnName": "trainingType",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "climate",
+            "columnName": "climate",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        }
+      }
+    ],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '670b13efe30099d1f674b6102504d417')"
+    ]
+  }
+}

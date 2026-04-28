@@ -1,7 +1,9 @@
 package com.pisc.project
 
 import androidx.compose.ui.window.Window
+import androidx.compose.ui.window.WindowState
 import androidx.compose.ui.window.application
+import androidx.compose.ui.unit.dp
 import com.pisc.project.App // Seu App.kt
 import com.pisc.project.data.local.getDatabaseBuilder
 import com.pisc.project.data.local.getRoomDatabase
@@ -18,6 +20,7 @@ fun main() = application {
     Window(
         onCloseRequest = ::exitApplication,
         title = "São Camilo - Taxa de Sudorese",
+        state = WindowState(width = 1200.dp, height = 800.dp)
     ) {
         // 3. Passa o repositório para a UI!
         App(repository = repository)
