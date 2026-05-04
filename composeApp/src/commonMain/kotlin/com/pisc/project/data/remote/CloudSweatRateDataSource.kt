@@ -58,6 +58,21 @@ class CloudSweatRateDataSource {
             null
         }
     }
+
+    suspend fun updateUserEmail(oldEmail: String, newEmail: String): Boolean {
+        return try {
+            @Serializable
+            data class EmailUpdateDto(val userEmail: String)
+            
+            client.postgrest["sweat_sessions"].update(EmailUpdateDto(newEmail)) {
+                filter { eq("userEmail", oldEmail) }
+            }
+            true
+        } catch (e: Exception) {
+            println("Erro ao atualizar email na nuvem: ${e.message}")
+            false
+        }
+    }
 }
 
 @Serializable

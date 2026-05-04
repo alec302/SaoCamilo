@@ -24,4 +24,7 @@ interface SweatRateDao {
 
     @Query("SELECT * FROM sweat_sessions WHERE userEmail = :email ORDER BY dateTimestamp DESC")
     fun getAllSessions(email: String): Flow<List<SweatRateEntity>>
+
+    @Query("UPDATE sweat_sessions SET userEmail = :newEmail WHERE userEmail = :oldEmail")
+    suspend fun updateUserEmail(oldEmail: String, newEmail: String)
 }

@@ -22,6 +22,17 @@ data class SweatRateResult(
     val overIntakeRisk: Boolean
 )
 
+data class CalculatorFormState(
+    val preWeight: String = "",
+    val postWeight: String = "",
+    val intake: String = "",
+    val urine: String = "",
+    val duration: String = "",
+    val trainingType: String = "",
+    val climate: String = "",
+    val isLoadingWeather: Boolean = false
+)
+
 class SweatRateViewModel(
     private val repository: SweatRateRepository,
     private val userEmail: String
@@ -31,6 +42,42 @@ class SweatRateViewModel(
         // Tenta sincronizar registros da nuvem pro local ao iniciar
         viewModelScope.launch {
             repository.syncCloudToLocal(userEmail)
+        }
+    }
+
+    // 0. Estado do formulário
+    private val _formState = MutableStateFlow(CalculatorFormState())
+    val formState = _formState.asStateFlow()
+
+    fun updateForm(update: (CalculatorFormState) -> CalculatorFormState) {
+        _formState.update(update)
+    }
+
+    fun fetchWeatherIfNeeded() {
+        if (_formState.value.climate.isEmpty() && !_formState.value.isLoadingWeather) {
+            _formState.update { it.copy(isLoadingWeather = true) }
+            viewModelScope.launch {
+                val fetched = com.pisc.project.data.remote.WeatherApiService.fetchCurrentClimateString()
+                _formState.update { 
+                    it.copy(
+                        climate = fetched ?: it.climate,
+                        isLoadingWeather = false
+                    )
+                }
+            }
+        }
+    }
+
+    fun forceFetchWeather() {
+        _formState.update { it.copy(isLoadingWeather = true) }
+        viewModelScope.launch {
+            val fetched = com.pisc.project.data.remote.WeatherApiService.fetchCurrentClimateString()
+            _formState.update { 
+                it.copy(
+                    climate = fetched ?: it.climate,
+                    isLoadingWeather = false
+                )
+            }
         }
     }
 

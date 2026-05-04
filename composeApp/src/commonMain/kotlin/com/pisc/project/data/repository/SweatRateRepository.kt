@@ -64,4 +64,8 @@ class SweatRateRepository(
             }
         }
     }
+
+    suspend fun updateEmailLocally(oldEmail: String, newEmail: String) {
+        localDao.updateUserEmail(oldEmail, newEmail)
+    }
 }

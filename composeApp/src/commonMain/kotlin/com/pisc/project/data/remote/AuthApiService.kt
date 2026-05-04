@@ -73,4 +73,16 @@ class AuthApiService {
             println("Erro ao salvar tema na nuvem: ${e.message}")
         }
     }
+
+    suspend fun updateCredentials(oldEmail: String, newEmail: String, newPass: String): Boolean {
+        return try {
+            client.postgrest["app_users"].update(CredentialsUpdateDto(newEmail, newPass)) {
+                filter { eq("email", oldEmail) }
+            }
+            true
+        } catch (e: Exception) {
+            println("Erro ao atualizar credenciais na nuvem: ${e.message}")
+            false
+        }
+    }
 }

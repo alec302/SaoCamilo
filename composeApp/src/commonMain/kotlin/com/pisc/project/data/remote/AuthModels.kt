@@ -15,3 +15,9 @@ data class AuthResponse(
     val isDarkTheme: Boolean = false,
     val error: String? = null
 )
+
+@Serializable
+data class CredentialsUpdateDto(
+    val email: String,
+    val passwordHash: String
+)

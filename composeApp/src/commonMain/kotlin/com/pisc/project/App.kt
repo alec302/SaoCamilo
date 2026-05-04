@@ -14,6 +14,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -38,8 +39,15 @@ fun App(repository: SweatRateRepository) {
     val colors = if (isDarkTheme) DarkColors else LightColors
 
     CompositionLocalProvider(LocalAppColors provides colors) {
-        MaterialTheme {
-            if (loggedInUserEmail == null) {
+        val colorScheme = if (isDarkTheme) {
+            darkColorScheme(background = colors.bg, surface = colors.surface, primary = colors.accentStart, onBackground = colors.textPrimary, onSurface = colors.textPrimary)
+        } else {
+            lightColorScheme(background = colors.bg, surface = colors.surface, primary = colors.accentStart, onBackground = colors.textPrimary, onSurface = colors.textPrimary)
+        }
+        
+        MaterialTheme(colorScheme = colorScheme) {
+            Surface(modifier = Modifier.fillMaxSize(), color = colors.bg) {
+                if (loggedInUserEmail == null) {
                 LoginScreen(onLoginSuccess = { email, darkTheme -> 
                     loggedInUserEmail = email
                     isDarkTheme = darkTheme 
@@ -57,8 +65,10 @@ fun App(repository: SweatRateRepository) {
                             com.pisc.project.data.remote.AuthApiService().updateTheme(loggedInUserEmail!!, newTheme)
                         }
                     },
-                    onLogout = { loggedInUserEmail = null }
+                    onLogout = { loggedInUserEmail = null },
+                    onEmailUpdated = { newEmail -> loggedInUserEmail = newEmail }
                 )
+            }
             }
         }
     }
@@ -70,7 +80,8 @@ fun MainScaffoldContent(
     userEmail: String,
     isDarkTheme: Boolean,
     onThemeToggle: (Boolean) -> Unit,
-    onLogout: () -> Unit
+    onLogout: () -> Unit,
+    onEmailUpdated: (String) -> Unit
 ) {
     val viewModel: SweatRateViewModel = viewModel { SweatRateViewModel(repository, userEmail) }
     val uiState by viewModel.uiState.collectAsState()
@@ -80,6 +91,7 @@ fun MainScaffoldContent(
     var currentTab by remember { mutableStateOf(0) }
 
     Scaffold(
+        containerColor = colors.bg,
         bottomBar = {
             NavigationBar(
                 containerColor = colors.surface,
@@ -123,15 +135,33 @@ fun MainScaffoldContent(
                 2 -> DashboardScreen(history, userEmail)
                 3 -> SettingsScreen(isDarkTheme, { newTheme -> 
                     onThemeToggle(newTheme)
-                }, onLogout, userEmail)
+                }, onLogout, userEmail, repository, onEmailUpdated)
             }
         }
     }
 }
 
 @Composable
-fun SettingsScreen(isDarkTheme: Boolean, onThemeToggle: (Boolean) -> Unit, onLogout: () -> Unit, userEmail: String) {
+fun SettingsScreen(
+    isDarkTheme: Boolean, 
+    onThemeToggle: (Boolean) -> Unit, 
+    onLogout: () -> Unit, 
+    userEmail: String,
+    repository: SweatRateRepository,
+    onEmailUpdated: (String) -> Unit
+) {
     val colors = LocalAppColors.current
+    var newEmail by remember { mutableStateOf(userEmail) }
+    var newPassword by remember { mutableStateOf("") }
+    var updateMessage by remember { mutableStateOf("") }
+    var isUpdating by remember { mutableStateOf(false) }
+    val coroutineScope = rememberCoroutineScope()
+
+    val textFieldColors = TextFieldDefaults.colors(
+        focusedContainerColor = colors.bg, unfocusedContainerColor = colors.bg,
+        focusedIndicatorColor = Color.Transparent, unfocusedIndicatorColor = Color.Transparent,
+        focusedTextColor = colors.textPrimary, unfocusedTextColor = colors.textPrimary, cursorColor = colors.accentStart
+    )
 
     Column(
         modifier = Modifier.fillMaxSize().padding(16.dp).verticalScroll(rememberScrollState()),
@@ -171,6 +201,57 @@ fun SettingsScreen(isDarkTheme: Boolean, onThemeToggle: (Boolean) -> Unit, onLog
                 )
             }
         }
+
+        Card(modifier = Modifier.fillMaxWidth().widthIn(max = 600.dp), shape = RoundedCornerShape(24.dp), colors = CardDefaults.cardColors(containerColor = colors.surface)) {
+            Column(modifier = Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Text("ATUALIZAR CREDENCIAIS", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold, color = colors.textSecondary, letterSpacing = 1.sp))
+                
+                TextField(value = newEmail, onValueChange = { newEmail = it }, placeholder = { Text("Novo E-mail", color = colors.textSecondary) }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp), singleLine = true, colors = textFieldColors)
+                TextField(value = newPassword, onValueChange = { newPassword = it }, placeholder = { Text("Nova Senha", color = colors.textSecondary) }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp), singleLine = true, colors = textFieldColors)
+
+                Button(
+                    onClick = {
+                        if (newEmail.isNotBlank() && newPassword.isNotBlank()) {
+                            isUpdating = true
+                            updateMessage = "Atualizando..."
+                            coroutineScope.launch {
+                                val authApi = com.pisc.project.data.remote.AuthApiService()
+                                val cloudDb = com.pisc.project.data.remote.CloudSweatRateDataSource()
+                                
+                                val authSuccess = authApi.updateCredentials(userEmail, newEmail, newPassword)
+                                if (authSuccess) {
+                                    if (newEmail != userEmail) {
+                                        cloudDb.updateUserEmail(userEmail, newEmail)
+                                        repository.updateEmailLocally(userEmail, newEmail)
+                                        onEmailUpdated(newEmail)
+                                    }
+                                    updateMessage = "Credenciais atualizadas com sucesso!"
+                                } else {
+                                    updateMessage = "Erro ao atualizar credenciais."
+                                }
+                                isUpdating = false
+                            }
+                        } else {
+                            updateMessage = "Preencha e-mail e senha."
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth().height(56.dp), 
+                    shape = CircleShape, 
+                    colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent), 
+                    contentPadding = PaddingValues(0.dp),
+                    enabled = !isUpdating
+                ) {
+                    val bgModifier = if (isUpdating) Modifier.background(colors.textSecondary) else Modifier.background(colors.accentBrush)
+                    Box(modifier = Modifier.fillMaxSize().then(bgModifier), contentAlignment = Alignment.Center) {
+                        Text(if (isUpdating) "ATUALIZANDO..." else "SALVAR ALTERAÇÕES", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Black, letterSpacing = 2.sp, color = Color.White))
+                    }
+                }
+
+                if (updateMessage.isNotEmpty()) {
+                    Text(updateMessage, color = if (updateMessage.contains("Erro")) colors.danger else colors.success, style = MaterialTheme.typography.labelMedium)
+                }
+            }
+        }
     }
 }
 
@@ -178,13 +259,12 @@ fun SettingsScreen(isDarkTheme: Boolean, onThemeToggle: (Boolean) -> Unit, onLog
 fun CalculatorScreen(viewModel: SweatRateViewModel, uiState: SweatRateResult?) {
     val colors = LocalAppColors.current
 
-    var preWeight by remember { mutableStateOf("") }
-    var postWeight by remember { mutableStateOf("") }
-    var intake by remember { mutableStateOf("") }
-    var urine by remember { mutableStateOf("") }
-    var duration by remember { mutableStateOf("") }
-    var trainingType by remember { mutableStateOf("") }
-    var climate by remember { mutableStateOf("") }
+    val formState by viewModel.formState.collectAsState()
+    val coroutineScope = rememberCoroutineScope()
+
+    LaunchedEffect(Unit) {
+        viewModel.fetchWeatherIfNeeded()
+    }
 
     val textFieldColors = TextFieldDefaults.colors(
         focusedContainerColor = colors.bg, unfocusedContainerColor = colors.bg,
@@ -205,17 +285,34 @@ fun CalculatorScreen(viewModel: SweatRateViewModel, uiState: SweatRateResult?) {
                 Text("DADOS DO TREINO", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold, color = colors.textSecondary, letterSpacing = 1.sp))
                 
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    TextField(value = trainingType, onValueChange = { trainingType = it }, placeholder = { Text("Treino (Ex: Corrida)", color = colors.textSecondary) }, modifier = Modifier.weight(1f), shape = RoundedCornerShape(16.dp), singleLine = true, colors = textFieldColors)
-                    TextField(value = climate, onValueChange = { climate = it }, placeholder = { Text("Clima (Ex: Quente)", color = colors.textSecondary) }, modifier = Modifier.weight(1f), shape = RoundedCornerShape(16.dp), singleLine = true, colors = textFieldColors)
+                    TextField(value = formState.trainingType, onValueChange = { viewModel.updateForm { s -> s.copy(trainingType = it) } }, placeholder = { Text("Treino (Ex: Corrida)", color = colors.textSecondary) }, modifier = Modifier.weight(1f), shape = RoundedCornerShape(16.dp), singleLine = true, colors = textFieldColors)
+                    TextField(
+                        value = formState.climate, 
+                        onValueChange = { viewModel.updateForm { s -> s.copy(climate = it) } }, 
+                        placeholder = { Text("Clima", color = colors.textSecondary) }, 
+                        modifier = Modifier.weight(1f), 
+                        shape = RoundedCornerShape(16.dp), 
+                        singleLine = true, 
+                        colors = textFieldColors,
+                        trailingIcon = {
+                            IconButton(onClick = { viewModel.forceFetchWeather() }) {
+                                if (formState.isLoadingWeather) {
+                                    CircularProgressIndicator(modifier = Modifier.size(20.dp), color = colors.accentStart, strokeWidth = 2.dp)
+                                } else {
+                                    Icon(Icons.Default.Refresh, contentDescription = "Atualizar Clima", tint = colors.accentStart)
+                                }
+                            }
+                        }
+                    )
                 }
 
-                TextField(value = preWeight, onValueChange = { preWeight = it }, placeholder = { Text("Massa Inicial (kg)", color = colors.textSecondary) }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp), singleLine = true, colors = textFieldColors)
-                TextField(value = postWeight, onValueChange = { postWeight = it }, placeholder = { Text("Massa Final (kg)", color = colors.textSecondary) }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp), singleLine = true, colors = textFieldColors)
-                TextField(value = intake, onValueChange = { intake = it }, placeholder = { Text("Fluidos Ingeridos (mL)", color = colors.textSecondary) }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp), singleLine = true, colors = textFieldColors)
-                TextField(value = duration, onValueChange = { duration = it }, placeholder = { Text("Duração (minutos)", color = colors.textSecondary) }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp), singleLine = true, colors = textFieldColors)
+                TextField(value = formState.preWeight, onValueChange = { viewModel.updateForm { s -> s.copy(preWeight = it) } }, placeholder = { Text("Massa Inicial (kg)", color = colors.textSecondary) }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp), singleLine = true, colors = textFieldColors)
+                TextField(value = formState.postWeight, onValueChange = { viewModel.updateForm { s -> s.copy(postWeight = it) } }, placeholder = { Text("Massa Final (kg)", color = colors.textSecondary) }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp), singleLine = true, colors = textFieldColors)
+                TextField(value = formState.intake, onValueChange = { viewModel.updateForm { s -> s.copy(intake = it) } }, placeholder = { Text("Fluidos Ingeridos (mL)", color = colors.textSecondary) }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp), singleLine = true, colors = textFieldColors)
+                TextField(value = formState.duration, onValueChange = { viewModel.updateForm { s -> s.copy(duration = it) } }, placeholder = { Text("Duração (minutos)", color = colors.textSecondary) }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp), singleLine = true, colors = textFieldColors)
 
                 Button(
-                    onClick = { viewModel.onCalculateClicked(preWeight, postWeight, intake, urine, duration, trainingType, climate) },
+                    onClick = { viewModel.onCalculateClicked(formState.preWeight, formState.postWeight, formState.intake, formState.urine, formState.duration, formState.trainingType, formState.climate) },
                     modifier = Modifier.fillMaxWidth().height(56.dp), shape = CircleShape, colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent), contentPadding = PaddingValues(0.dp)
                 ) {
                     Box(modifier = Modifier.fillMaxSize().background(colors.accentBrush), contentAlignment = Alignment.Center) {
