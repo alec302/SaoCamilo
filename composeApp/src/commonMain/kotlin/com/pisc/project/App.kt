@@ -46,6 +46,8 @@ fun App(repository: SweatRateRepository) {
         }
         
         MaterialTheme(colorScheme = colorScheme) {
+            SetStatusBarColors(isDarkTheme = isDarkTheme, statusBarColor = colors.bg)
+
             Surface(modifier = Modifier.fillMaxSize(), color = colors.bg) {
                 if (loggedInUserEmail == null) {
                 LoginScreen(onLoginSuccess = { email, darkTheme -> 
