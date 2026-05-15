@@ -10,10 +10,15 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 
 @Serializable
-data class IpLocationResponse(
-    val status: String,
-    val lat: Double? = null,
-    val lon: Double? = null
+data class FreeIpResponse(
+    val latitude: Double? = null,
+    val longitude: Double? = null
+)
+
+@Serializable
+data class GeoJsResponse(
+    val latitude: String? = null,
+    val longitude: String? = null
 )
 
 @Serializable
@@ -39,16 +44,35 @@ object WeatherApiService {
 
     suspend fun fetchCurrentClimateString(): String? {
         return try {
-            // 1. Get approximate location via IP
-            val locationUrl = "http://ip-api.com/json/"
-            val locationResponse: IpLocationResponse = client.get(locationUrl).body()
-            
-            if (locationResponse.status != "success" || locationResponse.lat == null || locationResponse.lon == null) {
+            var lat: Double? = null
+            var lon: Double? = null
+
+            // 1. Get approximate location via IP over HTTPS using freeipapi.com
+            try {
+                val freeIpResp: FreeIpResponse = client.get("https://freeipapi.com/api/json").body()
+                lat = freeIpResp.latitude
+                lon = freeIpResp.longitude
+            } catch (e: Exception) {
+                println("Fallback: FreeIpApi falhou (${e.message}), tentando GeoJS...")
+            }
+
+            // Fallback para get.geojs.io caso o primeiro falhe
+            if (lat == null || lon == null || (lat == 0.0 && lon == 0.0)) {
+                try {
+                    val geoJsResp: GeoJsResponse = client.get("https://get.geojs.io/v1/ip/geo.json").body()
+                    lat = geoJsResp.latitude?.toDoubleOrNull()
+                    lon = geoJsResp.longitude?.toDoubleOrNull()
+                } catch (e: Exception) {
+                    println("Erro ao buscar localização via GeoJS: ${e.message}")
+                }
+            }
+
+            if (lat == null || lon == null) {
                 return null
             }
             
-            // 2. Get current weather from Open-Meteo
-            val weatherUrl = "https://api.open-meteo.com/v1/forecast?latitude=${locationResponse.lat}&longitude=${locationResponse.lon}&current=temperature_2m,relative_humidity_2m"
+            // 2. Get current weather from Open-Meteo over HTTPS
+            val weatherUrl = "https://api.open-meteo.com/v1/forecast?latitude=$lat&longitude=$lon&current=temperature_2m,relative_humidity_2m"
             val weatherResponse: OpenMeteoResponse = client.get(weatherUrl).body()
             
             weatherResponse.current?.let { current ->

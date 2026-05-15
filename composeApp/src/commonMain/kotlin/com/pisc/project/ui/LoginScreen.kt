@@ -1,10 +1,14 @@
 package com.pisc.project.ui
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
+import androidx.compose.animation.scaleIn
 import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.Crossfade
+import androidx.compose.ui.draw.shadow
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
@@ -33,13 +37,20 @@ fun LoginScreen(onLoginSuccess: (String, Boolean) -> Unit) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     
-    // Animação de entrada
+    // Animação de entrada refinada
     var visible by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) {
         visible = true
     }
 
     val colors = LocalAppColors.current
+
+    // Animação suave para a sombra/elevação que se sobrepõe ao fundo
+    val animatedElevation by animateDpAsState(
+        targetValue = if (visible) 24.dp else 0.dp,
+        animationSpec = tween(durationMillis = 1200, easing = FastOutSlowInEasing),
+        label = "refinedShadow"
+    )
 
     // Se logou com sucesso, avisa o App.kt passando o email e a preferencia de tema
     LaunchedEffect(isLoggedIn) {
@@ -54,16 +65,24 @@ fun LoginScreen(onLoginSuccess: (String, Boolean) -> Unit) {
     ) {
         AnimatedVisibility(
             visible = visible,
-            enter = fadeIn(animationSpec = tween(800)) + slideInVertically(initialOffsetY = { 50 }, animationSpec = tween(800))
+            enter = fadeIn(animationSpec = tween(1000)) + 
+                    slideInVertically(initialOffsetY = { 60 }, animationSpec = tween(1000, easing = FastOutSlowInEasing)) +
+                    scaleIn(initialScale = 0.94f, animationSpec = tween(1000, easing = FastOutSlowInEasing))
         ) {
             Card(
                 modifier = Modifier
                     .fillMaxWidth(0.9f)
                     .widthIn(max = 400.dp)
-                    .padding(16.dp),
+                    .padding(16.dp)
+                    .shadow(
+                        elevation = animatedElevation,
+                        shape = RoundedCornerShape(32.dp),
+                        ambientColor = colors.accentStart.copy(alpha = 0.25f),
+                        spotColor = colors.accentStart.copy(alpha = 0.45f)
+                    ),
                 shape = RoundedCornerShape(32.dp),
                 colors = CardDefaults.cardColors(containerColor = colors.surface),
-                elevation = CardDefaults.cardElevation(defaultElevation = 16.dp)
+                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
             ) {
                 Crossfade(targetState = isSignUpMode, modifier = Modifier.fillMaxWidth()) { signUp ->
                     Column(
